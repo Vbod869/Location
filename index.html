@@ -18,6 +18,10 @@
       --input-bg-dark: #334155;
     }
 
+    * {
+      transition: all 0.3s ease;
+    }
+
     body {
       font-family: 'Poppins', sans-serif;
       background: linear-gradient(135deg, var(--bg-light), #a5f3fc);
@@ -28,7 +32,6 @@
       height: 100vh;
       margin: 0;
       padding: 20px;
-      transition: all 0.3s ease;
     }
 
     body.dark {
@@ -43,7 +46,9 @@
       text-align: center;
       width: 100%;
       max-width: 520px;
-      transition: all 0.3s ease;
+      opacity: 0;
+      transform: translateY(30px);
+      animation: fadeInUp 0.8s ease forwards;
     }
 
     body.dark .card {
@@ -51,24 +56,22 @@
       box-shadow: 0 10px 30px rgba(255, 255, 255, 0.05);
     }
 
-    h2 {
-      font-size: 1.8em;
-      color: var(--text-light);
-      margin-bottom: 10px;
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
-    body.dark h2 {
-      color: var(--text-dark);
-    }
-
-    #info, .share p {
-      color: var(--text-light);
-      transition: color 0.3s ease;
-    }
-
-    body.dark #info,
-    body.dark .share p {
-      color: var(--text-dark);
+    @keyframes zoomIn {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
 
     #map {
@@ -77,27 +80,7 @@
       border-radius: 12px;
       overflow: hidden;
       border: 2px solid #e2e8f0;
-    }
-
-    .share {
-      margin-top: 15px;
-    }
-
-    input[type="text"] {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      font-size: 0.95em;
-      background-color: var(--input-bg-light);
-      color: #0f172a;
-      transition: all 0.3s ease;
-    }
-
-    body.dark input[type="text"] {
-      background-color: var(--input-bg-dark);
-      color: #e2e8f0;
-      border: 1px solid #64748b;
+      animation: zoomIn 1s ease forwards;
     }
 
     .toggle-dark {
@@ -111,12 +94,76 @@
       cursor: pointer;
       font-weight: 600;
       color: #1e293b;
-      transition: all 0.3s ease;
     }
 
     body.dark .toggle-dark {
       color: #e2e8f0;
       border-color: #e2e8f0;
+    }
+
+    h2 {
+      font-size: 1.8em;
+      color: var(--text-light);
+    }
+
+    body.dark h2 {
+      color: var(--text-dark);
+    }
+
+    #info, .share p, #lokasiNotice {
+      color: var(--text-light);
+    }
+
+    body.dark #info, body.dark .share p, body.dark #lokasiNotice {
+      color: var(--text-dark);
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 0.95em;
+      background-color: var(--input-bg-light);
+      color: #0f172a;
+    }
+
+    body.dark input[type="text"], body.dark select {
+      background-color: var(--input-bg-dark);
+      color: #e2e8f0;
+      border: 1px solid #64748b;
+    }
+
+    .share {
+      margin-top: 15px;
+    }
+
+    .share .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: -50px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      font-size: 14px;
+      opacity: 0;
+      transition: all 0.4s ease;
+      z-index: 9999;
+    }
+
+    #toast.show {
+      opacity: 1;
+      bottom: 30px;
     }
   </style>
 </head>
@@ -129,10 +176,20 @@
     <p id="lokasiNotice">Izinkan lokasi agar kamu bisa dilacak real-time 📍</p>
     <div id="info">Menunggu izin lokasi...</div>
     <div id="map"></div>
+
     <div class="share" id="shareSection" style="display:none;">
-      <p>Bagikan lokasi kamu dengan teman :</p>
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <input type="text" id="shareLink" readonly style="flex: 1;" />
+      <p>Bagikan lokasi kamu dengan teman (berlaku sementara):</p>
+      <div class="row">
+        <select id="durationSelect">
+          <option value="">-- Pilih durasi --</option>
+          <option value="1">1 menit</option>
+          <option value="15">15 menit</option>
+          <option value="30">30 menit</option>
+          <option value="60">1 jam</option>
+        </select>
+      </div>
+      <div class="row">
+        <input type="text" id="shareLink" readonly />
         <button onclick="copyLink()" title="Copy Link 📋" style="
           background-color: #3b82f6;
           color: white;
@@ -144,26 +201,11 @@
         ">📋</button>
       </div>
     </div>
+
+    <p id="viewExpiresInfo" style="margin-top: 12px; color: white; font-size: 0.9em;"></p>
   </div>
 
-  <div id="toast" style="
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #0f172a;
-  color: #fff;
-  padding: 12px 20px;
-  border-radius: 12px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  font-size: 14px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.4s ease, bottom 0.4s ease;
-  z-index: 9999;
-">
-  Link berhasil disalin! 🔗
-</div>
+  <div id="toast">Link berhasil disalin! 🔗</div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
@@ -171,44 +213,27 @@
     const mapDiv = document.getElementById("map");
     const shareSection = document.getElementById("shareSection");
     const shareLink = document.getElementById("shareLink");
+    const durationSelect = document.getElementById("durationSelect");
+    const viewExpiresInfo = document.getElementById("viewExpiresInfo");
+    const expiresInfo = document.getElementById("expiresInfo");
 
-    // ======= DARK MODE PERSISTENT ==========
     function applyDarkModeFromStorage() {
       const darkMode = localStorage.getItem("darkMode");
-      if (darkMode === "enabled") {
-        document.body.classList.add("dark");
-      }
+      if (darkMode === "enabled") document.body.classList.add("dark");
     }
 
     function toggleDarkMode() {
       document.body.classList.toggle("dark");
-      if (document.body.classList.contains("dark")) {
-        localStorage.setItem("darkMode", "enabled");
-      } else {
-        localStorage.setItem("darkMode", "disabled");
-      }
+      localStorage.setItem("darkMode", document.body.classList.contains("dark") ? "enabled" : "disabled");
     }
 
     function copyLink() {
-    const linkInput = document.getElementById("shareLink");
-    linkInput.select();
-    linkInput.setSelectionRange(0, 99999); // Untuk mobile
-    document.execCommand("copy");
-
-    // Tampilkan toast
-    const toast = document.getElementById("toast");
-    toast.style.opacity = "1";
-    toast.style.bottom = "50px";
-
-    // Sembunyikan toast setelah 2.5 detik
-    setTimeout(() => {
-      toast.style.opacity = "0";
-      toast.style.bottom = "30px";
-    }, 2500);
-  }
-
-    // Aktifkan dark mode jika sebelumnya disimpan
-    applyDarkModeFromStorage();
+      shareLink.select();
+      document.execCommand("copy");
+      const toast = document.getElementById("toast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    }
 
     function hideNotice() {
       const notice = document.getElementById("lokasiNotice");
@@ -225,48 +250,81 @@
         .openPopup();
     }
 
+    function isExpired(exp) {
+      return Math.floor(Date.now() / 1000) > exp;
+    }
+
+    function startExpirationCountdown(exp) {
+      const interval = setInterval(() => {
+        const now = Math.floor(Date.now() / 1000);
+        if (now >= exp) {
+          infoDiv.innerHTML = "Link ini sudah kedaluwarsa ⌛";
+          mapDiv.style.display = "none";
+          viewExpiresInfo.innerText = "";
+          clearInterval(interval);
+        }
+      }, 1000);
+    }
+
     const params = new URLSearchParams(window.location.search);
     if (params.has("lat") && params.has("lon")) {
       const lat = parseFloat(params.get("lat"));
       const lon = parseFloat(params.get("lon"));
-      infoDiv.innerHTML = `
-        <p><strong>Latitude:</strong> ${lat}<br>
-        <strong>Longitude:</strong> ${lon}</p>
-        <p>Lokasi dari teman kamu!</p>
-      `;
-      hideNotice();
-      initMap(lat, lon, true);
+      const exp = parseInt(params.get("expires") || 0);
+
+      if (isExpired(exp)) {
+        infoDiv.innerHTML = "Link ini sudah kedaluwarsa ⌛";
+        mapDiv.style.display = "none";
+      } else {
+        infoDiv.innerHTML = `<p><strong>Latitude:</strong> ${lat}<br><strong>Longitude:</strong> ${lon}</p><p>Lokasi dari teman kamu!</p>`;
+        hideNotice();
+        initMap(lat, lon, true);
+
+        const expiresDate = new Date(exp * 1000);
+        viewExpiresInfo.innerText = `Link ini akan kedaluwarsa pada: ${expiresDate.toLocaleString("id-ID")}`;
+        startExpirationCountdown(exp);
+      }
+
     } else if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(function(pos) {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
 
-        infoDiv.innerHTML = `
-          <p><strong>Latitude:</strong> ${lat}<br>
-          <strong>Longitude:</strong> ${lon}</p>
-          <p>Lokasi berhasil diambil!</p>
-        `;
-
+        infoDiv.innerHTML = `<p><strong>Latitude:</strong> ${lat}<br><strong>Longitude:</strong> ${lon}</p><p>Lokasi berhasil diambil!</p>`;
         hideNotice();
         initMap(lat, lon);
+        shareSection.style.display = "block";
 
-        fetch('save_location.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ latitude: lat, longitude: lon })
+        durationSelect.addEventListener("change", () => {
+          const minutes = parseInt(durationSelect.value);
+          const expires = Math.floor(Date.now() / 1000) + minutes * 60;
+          const url = `${window.location.origin}${window.location.pathname}?lat=${lat}&lon=${lon}&expires=${expires}`;
+          shareLink.value = url;
+
+          if (isNaN(minutes)) {
+            shareLink.value = "";
+            expiresInfo.innerText = "";
+            return;
+          }
+
+          const expiresDate = new Date(expires * 1000);
+          expiresInfo.innerText = `Link akan kedaluwarsa pada: ${expiresDate.toLocaleString("id-ID")}`;
         });
 
-        const url = `${window.location.origin}${window.location.pathname}?lat=${lat}&lon=${lon}`;
-        shareLink.value = url;
-        shareSection.style.display = "block";
+        durationSelect.dispatchEvent(new Event("change"));
 
       }, function(error) {
         infoDiv.innerHTML = "Gagal mendapatkan lokasi: " + error.message;
+      }, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
       });
     } else {
       infoDiv.innerHTML = "Browser kamu tidak mendukung Geolocation.";
     }
-  </script>
 
+    applyDarkModeFromStorage();
+  </script>
 </body>
 </html>
