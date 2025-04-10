@@ -5,44 +5,124 @@
   <title>Pelacak Lokasi</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    :root {
+      --bg-light: #dbeafe;
+      --bg-dark: #0f172a;
+      --card-light: #ffffff;
+      --card-dark: #1e293b;
+      --text-light: #0c4a6e;
+      --text-dark: #e2e8f0;
+      --input-bg-light: #f1f5f9;
+      --input-bg-dark: #334155;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(to bottom right, #7dd3fc, #bae6fd);
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, var(--bg-light), #a5f3fc);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
       margin: 0;
-      padding: 0;
+      padding: 20px;
+      transition: all 0.3s ease;
     }
+
+    body.dark {
+      background: linear-gradient(135deg, var(--bg-dark), #1e3a8a);
+    }
+
     .card {
-      background: white;
-      padding: 20px 30px;
-      border-radius: 15px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      background: var(--card-light);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
       text-align: center;
-      width: 90%;
-      max-width: 500px;
+      width: 100%;
+      max-width: 520px;
+      transition: all 0.3s ease;
     }
+
+    body.dark .card {
+      background: var(--card-dark);
+      box-shadow: 0 10px 30px rgba(255, 255, 255, 0.05);
+    }
+
+    h2 {
+      font-size: 1.8em;
+      color: var(--text-light);
+      margin-bottom: 10px;
+    }
+
+    body.dark h2 {
+      color: var(--text-dark);
+    }
+
+    #info, .share p {
+      color: var(--text-light);
+      transition: color 0.3s ease;
+    }
+
+    body.dark #info,
+    body.dark .share p {
+      color: var(--text-dark);
+    }
+
     #map {
       height: 300px;
       margin-top: 15px;
-      border-radius: 10px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid #e2e8f0;
     }
+
     .share {
-      margin-top: 10px;
+      margin-top: 15px;
     }
+
     input[type="text"] {
       width: 100%;
-      padding: 8px;
-      margin-top: 8px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 0.95em;
+      background-color: var(--input-bg-light);
+      color: #0f172a;
+      transition: all 0.3s ease;
+    }
+
+    body.dark input[type="text"] {
+      background-color: var(--input-bg-dark);
+      color: #e2e8f0;
+      border: 1px solid #64748b;
+    }
+
+    .toggle-dark {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: 2px solid #64748b;
+      padding: 6px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #1e293b;
+      transition: all 0.3s ease;
+    }
+
+    body.dark .toggle-dark {
+      color: #e2e8f0;
+      border-color: #e2e8f0;
     }
   </style>
 </head>
 <body>
+
+  <button class="toggle-dark" onclick="toggleDarkMode()">🌙 Dark Mode</button>
 
   <div class="card">
     <h2>Pelacak Lokasi Anda 📍</h2>
@@ -50,10 +130,40 @@
     <div id="info">Menunggu izin lokasi...</div>
     <div id="map"></div>
     <div class="share" id="shareSection" style="display:none;">
-      <p>Bagikan lokasi kamu dengan teman:</p>
-      <input type="text" id="shareLink" readonly />
+      <p>Bagikan lokasi kamu dengan teman :</p>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <input type="text" id="shareLink" readonly style="flex: 1;" />
+        <button onclick="copyLink()" title="Copy Link 📋" style="
+          background-color: #3b82f6;
+          color: white;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 10px;
+          cursor: pointer;
+          font-size: 14px;
+        ">📋</button>
+      </div>
     </div>
   </div>
+
+  <div id="toast" style="
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease, bottom 0.4s ease;
+  z-index: 9999;
+">
+  Link berhasil disalin! 🔗
+</div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
@@ -61,6 +171,49 @@
     const mapDiv = document.getElementById("map");
     const shareSection = document.getElementById("shareSection");
     const shareLink = document.getElementById("shareLink");
+
+    // ======= DARK MODE PERSISTENT ==========
+    function applyDarkModeFromStorage() {
+      const darkMode = localStorage.getItem("darkMode");
+      if (darkMode === "enabled") {
+        document.body.classList.add("dark");
+      }
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+      if (document.body.classList.contains("dark")) {
+        localStorage.setItem("darkMode", "enabled");
+      } else {
+        localStorage.setItem("darkMode", "disabled");
+      }
+    }
+
+    function copyLink() {
+    const linkInput = document.getElementById("shareLink");
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999); // Untuk mobile
+    document.execCommand("copy");
+
+    // Tampilkan toast
+    const toast = document.getElementById("toast");
+    toast.style.opacity = "1";
+    toast.style.bottom = "50px";
+
+    // Sembunyikan toast setelah 2.5 detik
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.bottom = "30px";
+    }, 2500);
+  }
+
+    // Aktifkan dark mode jika sebelumnya disimpan
+    applyDarkModeFromStorage();
+
+    function hideNotice() {
+      const notice = document.getElementById("lokasiNotice");
+      if (notice) notice.style.display = "none";
+    }
 
     function initMap(lat, lon, isShared = false) {
       const map = L.map('map').setView([lat, lon], 15);
@@ -72,11 +225,6 @@
         .openPopup();
     }
 
-    // Sembunyikan pesan izin lokasi
-document.getElementById("lokasiNotice").style.display = "none";
-
-
-    // Cek apakah URL punya query string lat/lon
     const params = new URLSearchParams(window.location.search);
     if (params.has("lat") && params.has("lon")) {
       const lat = parseFloat(params.get("lat"));
@@ -86,6 +234,7 @@ document.getElementById("lokasiNotice").style.display = "none";
         <strong>Longitude:</strong> ${lon}</p>
         <p>Lokasi dari teman kamu!</p>
       `;
+      hideNotice();
       initMap(lat, lon, true);
     } else if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(function(pos) {
@@ -98,16 +247,15 @@ document.getElementById("lokasiNotice").style.display = "none";
           <p>Lokasi berhasil diambil!</p>
         `;
 
+        hideNotice();
         initMap(lat, lon);
 
-        // Kirim ke server
         fetch('save_location.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ latitude: lat, longitude: lon })
         });
 
-        // Tampilkan link share
         const url = `${window.location.origin}${window.location.pathname}?lat=${lat}&lon=${lon}`;
         shareLink.value = url;
         shareSection.style.display = "block";
